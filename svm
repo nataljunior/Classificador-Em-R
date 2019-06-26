@@ -1,0 +1,136 @@
+###### SVM Classification ######
+
+#Get the document "Teste1_4" in xlsx to R and loading the packages#
+library(readxl)
+Teste1_4 <- Teste1_4 <- read_excel("C:/Users/natal/Downloads/Teste1_4.xlsx")
+View(Teste1_4)
+library(tm)
+library(e1071)
+
+#### Three categories of classification were defined, where all comments were manually classified.
+Below is the separation of comments between 1 for those that match the rating and 0 for those that do not match ####
+
+TCat1 <- Teste1_4[which(Teste1_4$Coment==1),]
+NCat1 <- subset(Teste1_4,!(Teste1_4$Coment%in%c(1)))
+NCat1$Coment <- replace(NCat1$Coment,2&&3,0)
+NCat1$Coment2 <- replace(NCat1$Coment2,2&&3,0)
+NCat1 <- NCat1[,-3]
+TCat1 <- TCat1[,-3]
+
+Tcat2 <- Teste1_4[which(Teste1_4$Coment==2),]
+TCat22 <- Teste1_4[which(Teste1_4$Coment2==2),]
+TCat222 <- rbind(Tcat2,TCat22)
+TCat222$Coment <- replace(TCat222$Coment,2&&3,1)
+TCat222 <- TCat222[,-3]
+NCat2 <- subset(Teste1_4,!(Teste1_4$Coment%in%c(2))^!(Teste1_4$Coment2%in%c(2)))
+NCat2$Coment <- replace(NCat2$Coment,1&&3,0)
+NCat2 <- NCat2[,-3]
+Tcat2 <- Tcat2[,-3]
+
+Tcat3 <- Teste1_4[which(Teste1_4$Coment==3),]
+TCat33 <- Teste1_4[which(Teste1_4$Coment2==3),]
+TCat333 <- rbind(Tcat3,TCat33)
+TCat333$Coment <- replace(TCat333$Coment,2&&3,1)
+TCat333 <- TCat333[,-3]
+NCat3 <- subset(Teste1_4,!(Teste1_4$Coment%in%c(3))^!(Teste1_4$Coment2%in%c(3)))
+NCat3$Coment <- replace(NCat3$Coment,1&&2,0)
+NCat3 <- NCat3[,-3]
+
+
+### The corresponding comments were again added to those that did not correspond in the same matrix ###
+com1 <- rbind(NCat1,TCat1)
+com2 <- rbind(NCat2,TCat222)
+com3 <- rbind(NCat3,TCat333)
+
+S1 <- com1[sample(nrow(com1)),]
+S2 <- com2[sample(nrow(com2)),]
+S3 <- com3[sample(nrow(com3)),]
+
+### At random, 15 seeds were defined, allowing different sequences of reading and learning, below the seed "5" ###
+set.seed(5)
+
+TextSource1 <- Corpus(VectorSource(S1$`Titulo e reclamacao`))
+TextSource2 <- Corpus(VectorSource(S2$`Titulo e reclamacao`))
+TextSource3 <- Corpus(VectorSource(S3$`Titulo e reclamacao`))
+
+corpus1 <- TextSource1
+corpus2 <- TextSource2
+corpus3 <- TextSource3
+
+# Treat the Corpus #
+corpus11  <- tm_map(corpus1, removePunctuation)
+corpus11 <- tm_map(corpus1, removeNumbers)
+corpus11 <- tm_map(corpus1, tolower)
+corpus11 <- tm_map(corpus1, removeWords, stopwords("portuguese"))
+corpus11 <- tm_map(corpus1, stripWhitespace)
+
+corpus22  <- tm_map(corpus2, removePunctuation)
+corpus22  <- tm_map(corpus2, removeNumbers)
+corpus22 <- tm_map(corpus2, tolower)
+corpus22 <- tm_map(corpus2, removeWords, stopwords("portuguese"))
+corpus22 <- tm_map(corpus2, stripWhitespace)
+
+corpus33  <- tm_map(corpus3, removePunctuation)
+corpus33  <- tm_map(corpus3, removeNumbers)
+corpus33 <- tm_map(corpus3, tolower)
+corpus33 <- tm_map(corpus3, removeWords, stopwords("portuguese"))
+corpus33 <- tm_map(corpus3, stripWhitespace)
+
+# Transforming in a DTM #
+dtm1 <- DocumentTermMatrix(corpus1)
+dtm2 <- DocumentTermMatrix(corpus2)
+dtm3 <- DocumentTermMatrix(corpus3)
+
+dtm11 <- as.matrix(dtm1)
+com1Com <- as.factor(S1$Coment)
+dtm22 <- as.matrix(dtm2)
+com2com <- as.factor(S2$Coment)
+dtm33 <- as.matrix(dtm3)
+com3com <- as.factor(S3$Coment)
+
+# Training SVM #
+svm1 <- svm(dtm11[1:940],com1Com[1:940])
+svm2 <- svm(dtm22[1:940],com2com[1:940])
+svm3 <- svm(dtm33[1:940],com3com[1:940])
+
+# Classifying sample #
+pred1 <- predict(svm1, dtm11[941:1175])
+pred2 <- predict(svm2, dtm22[941:1175])
+pred3 <- predict(svm3, dtm33[941:1175])
+
+result1 <- table(pred1, com1Com[941:1175])
+result2 <- table(pred2, com2com[941:1175])
+result3 <- table(pred3, com3com[941:1175])
+
+table(pred1,com1Com[941:1175])
+table(pred2, com2com[941:1175])
+table(pred3, com3com[941:1175])
+
+
+#### Now doing the same without Sparse Terms ###
+DTMC1 <- removeSparseTerms(dtm1,0.998)
+DTMC2 <- removeSparseTerms(dtm2,0.998)
+DTMC3 <- removeSparseTerms(dtm3,0.998)
+
+dtm11 <- as.matrix(DTMC1)
+com1Com <- as.factor(S1$Coment)
+dtm22 <- as.matrix(DTMC2)
+com2com <- as.factor(S2$Coment)
+dtm33 <- as.matrix(DTMC3)
+com3com <- as.factor(S3$Coment)
+
+svm1 <- svm(dtm11[1:940],com1Com[1:940])
+svm2 <- svm(dtm22[1:940],com2com[1:940])
+svm3 <- svm(dtm33[1:940],com3com[1:940])
+
+pred1 <- predict(svm1, dtm11[941:1175])
+pred2 <- predict(svm2, dtm22[941:1175])
+pred3 <- predict(svm3, dtm33[941:1175])
+
+result1 <- table(pred1, com1Com[941:1175])
+result2 <- table(pred2, com2com[941:1175])
+result3 <- table(pred3, com3com[941:1175])
+
+table(pred1,com1Com[941:1175])
+table(pred2, com2com[941:1175])
+table(pred3, com3com[941:1175])
